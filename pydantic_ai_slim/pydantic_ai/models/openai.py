@@ -18,6 +18,7 @@ from .._utils import guard_tool_call_id as _guard_tool_call_id
 from ..messages import (
     AudioUrl,
     BinaryContent,
+    ChatCompletionTokenLogprob,
     DocumentUrl,
     ImageUrl,
     ModelMessage,
@@ -90,6 +91,12 @@ class OpenAIModelSettings(ModelSettings, total=False):
 
     See [OpenAI's safety best practices](https://platform.openai.com/docs/guides/safety-best-practices#end-user-ids) for more details.
     """
+
+    logprobs: bool
+    """Include log probabilities in the response."""
+
+    top_logprobs: int
+    """Include log probabilities of the top n tokens in the response."""
 
 
 @dataclass(init=False)
@@ -289,6 +296,8 @@ class OpenAIModel(Model):
                 logit_bias=model_settings.get('logit_bias', NOT_GIVEN),
                 reasoning_effort=model_settings.get('openai_reasoning_effort', NOT_GIVEN),
                 user=model_settings.get('user', NOT_GIVEN),
+                logprobs=model_settings.get('logprobs', NOT_GIVEN),
+                top_logprobs=model_settings.get('top_logprobs', NOT_GIVEN),
             )
         except APIStatusError as e:
             if (status_code := e.status_code) >= 400:
@@ -300,12 +309,16 @@ class OpenAIModel(Model):
         timestamp = datetime.fromtimestamp(response.created, tz=timezone.utc)
         choice = response.choices[0]
         items: list[ModelResponsePart] = []
+
+        logprobs = choice.logprobs.content if choice.logprobs is not None else []
+        logprobs = [ChatCompletionTokenLogprob(**lp.model_dump()) for lp in logprobs] if logprobs else []
+
         if choice.message.content is not None:
             items.append(TextPart(choice.message.content))
         if choice.message.tool_calls is not None:
             for c in choice.message.tool_calls:
                 items.append(ToolCallPart(c.function.name, c.function.arguments, c.id))
-        return ModelResponse(items, model_name=response.model, timestamp=timestamp)
+        return ModelResponse(items, model_name=response.model, timestamp=timestamp, logprobs=logprobs)
 
     async def _process_streamed_response(self, response: AsyncStream[ChatCompletionChunk]) -> OpenAIStreamedResponse:
         """Process a streamed response, and prepare a streaming response to return."""

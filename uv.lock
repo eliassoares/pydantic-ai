@@ -2846,7 +2846,7 @@ lint = [
 
 [[package]]
 name = "pydantic-ai-examples"
-version = "0.0.45"
+version = "0.0.44"
 source = { editable = "examples" }
 dependencies = [
     { name = "asyncpg" },
@@ -3091,7 +3091,7 @@ wheels = [
 
 [[package]]
 name = "pydantic-graph"
-version = "0.0.45"
+version = "0.0.44"
 source = { editable = "pydantic_graph" }
 dependencies = [
     { name = "httpx" },
